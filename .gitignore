@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+
+# Flask-related files
+instance/
+*.db
+
+# Downloads folder – to prevent large media files from being committed
+downloads/
+*.part
+*.mp4
+*.mp3
+
+# Environment variables
+.env
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# VSCode settings
+.vscode/
+
+# Log files
+*.log
