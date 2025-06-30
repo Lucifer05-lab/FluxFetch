@@ -1,38 +1,44 @@
-from flask import Flask, render_template, request, send_file
-import yt_dlp
-import os
+from flask import Flask, request, Response, render_template, stream_with_context
+import youtube_dl
 
 app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        url = request.form['url']
-        format_type = request.form['format']
-        quality = request.form['quality']
+        video_url = request.form.get('url')
+        if not video_url:
+            return "Please provide a valid URL", 400
 
-        ydl_opts = {
-            'outtmpl': 'downloads/%(title)s.%(ext)s',
-            'format': 'bestaudio/best' if format_type == 'audio' else f'bestvideo[height<={quality}]+bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }] if format_type == 'audio' else []
-        }
+        def generate():
+            ydl_opts = {
+                'format': 'best',
+                'outtmpl': '-',  # Output to stdout (stream)
+                'quiet': True,
+                'no_warnings': True,
+            }
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(video_url, download=False)
+                filename = ydl.prepare_filename(info_dict)
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info)
-                if format_type == 'audio':
-                    filename = filename.rsplit(".", 1)[0] + ".mp3"
+                # Stream the actual video file
+                ydl_opts['outtmpl'] = filename
+                ydl_opts['quiet'] = False
+                ydl_opts['no_warnings'] = False
 
-            return send_file(filename, as_attachment=True)
-        except Exception as e:
-            return f"An error occurred: {e}", 500
+                # Download video to file first (for simplicity)
+                ydl.download([video_url])
+
+                # Now read the file and yield chunks
+                with open(filename, 'rb') as f:
+                    chunk = f.read(8192)
+                    while chunk:
+                        yield chunk
+                        chunk = f.read(8192)
+
+        return Response(stream_with_context(generate()), headers={
+            'Content-Disposition': 'attachment; filename="downloaded_video.mp4"',
+            'Content-Type': 'application/octet-stream'
+        })
 
     return render_template('index.html')
-
-if __name__ == '__main__':
-    app.run(debug=True)
