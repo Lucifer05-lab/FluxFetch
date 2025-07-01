@@ -21,7 +21,8 @@ def index():
                 'outtmpl': filename,
                 'quiet': True,
                 'noplaylist': True,
-                'merge_output_format': 'mp4'
+                'merge_output_format': 'mp4',
+                'cookiefile': 'cookies.txt',  # <-- Add this line
             }
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
