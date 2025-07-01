@@ -1,5 +1,6 @@
 from flask import Flask, request, Response, render_template, stream_with_context
-import youtube_dl
+import yt_dlp
+import os
 
 app = Flask(__name__)
 
@@ -10,35 +11,36 @@ def index():
         if not video_url:
             return "Please provide a valid URL", 400
 
+        format_type = request.form.get('format') or 'video'
+        quality = request.form.get('quality') or '720'
+
         def generate():
+            filename = f"downloaded.%(ext)s"
             ydl_opts = {
-                'format': 'best',
-                'outtmpl': '-',  # Output to stdout (stream)
+                'format': f'bestvideo[height<={quality}]+bestaudio/best',
+                'outtmpl': filename,
                 'quiet': True,
-                'no_warnings': True,
+                'noplaylist': True,
+                'merge_output_format': 'mp4'
             }
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info_dict = ydl.extract_info(video_url, download=False)
-                filename = ydl.prepare_filename(info_dict)
 
-                # Stream the actual video file
-                ydl_opts['outtmpl'] = filename
-                ydl_opts['quiet'] = False
-                ydl_opts['no_warnings'] = False
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(video_url, download=True)
+                final_file = ydl.prepare_filename(info)
 
-                # Download video to file first (for simplicity)
-                ydl.download([video_url])
+            # Stream file to user
+            with open(final_file, 'rb') as f:
+                while chunk := f.read(8192):
+                    yield chunk
 
-                # Now read the file and yield chunks
-                with open(filename, 'rb') as f:
-                    chunk = f.read(8192)
-                    while chunk:
-                        yield chunk
-                        chunk = f.read(8192)
+            os.remove(final_file)  # delete after sending
 
-        return Response(stream_with_context(generate()), headers={
-            'Content-Disposition': 'attachment; filename="downloaded_video.mp4"',
-            'Content-Type': 'application/octet-stream'
-        })
+        return Response(
+            stream_with_context(generate()),
+            headers={
+                'Content-Disposition': 'attachment; filename="fluxfetch_download.mp4"',
+                'Content-Type': 'application/octet-stream'
+            }
+        )
 
     return render_template('index.html')

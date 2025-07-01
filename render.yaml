@@ -1,9 +1,7 @@
 services:
-- type: web
-  name: fluxfetch
-  runtime: python
-  buildCommand: ""
-  startCommand: "python main.py"
-  envVars:
-    - key: PORT
-      value: 10000
+  - type: web
+    name: fluxfetch
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn main:app"
+    autoDeploy: true
