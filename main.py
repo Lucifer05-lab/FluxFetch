@@ -22,19 +22,18 @@ def index():
                 'quiet': True,
                 'noplaylist': True,
                 'merge_output_format': 'mp4',
-                'cookiefile': 'cookies.txt',  # <-- Add this line
+                'cookiefile': 'cookies.txt',  # <-- Make sure cookies.txt is here
             }
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(video_url, download=True)
                 final_file = ydl.prepare_filename(info)
 
-            # Stream file to user
             with open(final_file, 'rb') as f:
                 while chunk := f.read(8192):
                     yield chunk
 
-            os.remove(final_file)  # delete after sending
+            os.remove(final_file)
 
         return Response(
             stream_with_context(generate()),
@@ -45,3 +44,7 @@ def index():
         )
 
     return render_template('index.html')
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
